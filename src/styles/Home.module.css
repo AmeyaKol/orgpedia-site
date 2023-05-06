@@ -1,0 +1,29 @@
+.title {
+  color: #000000;
+  padding-bottom: 20px;
+  text-align: center;
+}
+.text {
+  color: #777;
+}
+.btn {
+  display: block;
+  width: 150px;
+  padding: 8px 0;
+  margin: 20px auto;
+  background: #4979ff;
+  border-radius: 4px;
+  color: white;
+  text-align: center;
+}
+.body{
+  background-color: white;
+}
+
+.main-content{
+  margin-left: 10%;
+  width: 60vw;
+  height: 90vh;
+  display: flex;
+  justify-content: center;
+}

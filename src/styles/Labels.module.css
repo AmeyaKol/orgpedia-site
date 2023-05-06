@@ -1,0 +1,44 @@
+.labelbtns {
+  border: 1px solid black;
+  list-style: none;
+}
+
+.labelbtns li:nth-child(1) {
+  color: red;
+}
+
+.labelbtns li:nth-child(2) {
+  color: orange;
+}
+
+.labelbtns li:nth-child(3) {
+  color: rgb(209, 207, 55);
+}
+
+.labelbtns li:nth-child(4) {
+  color: green;
+}
+
+.labelbtns li:nth-child(5) {
+  color: blue;
+}
+
+.labelbtns li:nth-child(6) {
+  color: indigo;
+}
+
+.labelbtns li:nth-child(7) {
+  color: violet;
+}
+
+.labelbtns :hover {
+  background-color: #c6c0c0e4;
+}
+
+.labelbtns :active {
+  background-color: #ccc;
+}
+
+.labelbtns :focus {
+  background-color: #aaa;
+}
