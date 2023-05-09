@@ -2,11 +2,13 @@ import "@/styles/globals.css";
 import Layout from "./components/Layout";
 import Script from "next/script";
 import Head from "next/head";
+import LabelState from "./contexts/LabelState";
+import AnnotationsState from "./contexts/AnnotationsState";
 export default function App({ Component, pageProps }) {
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link
           href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css"
           rel="stylesheet"
@@ -19,9 +21,13 @@ export default function App({ Component, pageProps }) {
         integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
         crossOrigin="anonymous"
       />
-      <Layout>
-        <Component {...pageProps} />
-      </Layout>
+      <LabelState>
+        <AnnotationsState>
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        </AnnotationsState>
+      </LabelState>
     </>
   );
 }

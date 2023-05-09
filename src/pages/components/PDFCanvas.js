@@ -1,132 +1,206 @@
 import React from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import { useState, useRef, useEffect } from "react";
-
+import { useState, useRef, useEffect, useContext } from "react";
+import LabelContext from "../contexts/LabelContext";
+import AnnotationsContext from "../contexts/AnnotationsContext";
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-function PDFCanvas({ pdfUrl }) {
-  const canvasRef = useRef(null);
-  const annotationCanvasRef = useRef(null);
-  const [labelList, setlabelList] = useState([]);
-  const annotation = useRef();
+const PDFCanvas = ({ url }) => {
+  const pdfCanvasRef = useRef(null);
+  const overlayCanvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const lastXRef = useRef(0);
+  const lastYRef = useRef(0);
+  const { annotations, updateAnnotations } = useContext(AnnotationsContext);
+  const { label, updateLabel } = useContext(LabelContext);
+  const colors = {
+    Title: "red",
+    Copy: "orange",
+    Date: "yellow",
+    Body: "green",
+    Table: "blue",
+    OrderNumber: "indigo",
+    Signature: "violet",
+  };
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const annotationCanvas = annotationCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const annotationCtx = annotationCanvas.getContext("2d");
+    const pdfCanvas = pdfCanvasRef.current;
+    const overlayCanvas = overlayCanvasRef.current;
+    const pdfContext = pdfCanvas.getContext("2d");
+    const overlayContext = overlayCanvas.getContext("2d");
 
-    let pdfDoc = null;
-    let pageNum = 1;
-    let pageRendering = false;
-    let pageNumPending = null;
-    const handleClick = (event) => {
-      // const annotationCanvas = annotationCanvasRef.current;
-      // const annotationCtx = annotationCanvas.getContext("2d");
+    let pdfPage = null;
 
-      const x = event.nativeEvent.offsetX;
-      const y = event.nativeEvent.offsetY;
+    // Load the PDF
+    pdfjs.getDocument(url).promise.then(function (pdf) {
+      // Get the first page of the PDF
+      pdf.getPage(1).then(function (page) {
+        pdfPage = page;
 
-      annotationCtx.beginPath();
-      // annotationCtx.strokeStyle = "blue";
-      annotationCtx.rect(x - 25, y - 25, 50, 50);
-      // annotationCtx.lineWidth = 2;
-      annotationCtx.stroke();
-      console.log("clicked on pdf");
-    };
-    onmousedown = function (e) {
-      var pos = getMousePos(canvas, e);
-      var x = pos.x;
-      var y = pos.y;
-      console.log("mousedown");
-      console.log(x, y);
-      annotation.current = [x, y];
-    };
-
-    onmouseup = function (e) {
-      var pos = getMousePos(canvas, e);
-      var x = pos.x;
-      var y = pos.y;
-      console.log("mouseup");
-      console.log(x, y);
-      // console.log(canvasRef.current.style);
-      var startX = annotation.current[0];
-      var startY = annotation.current[1];
-      var width = x - startX;
-      var height = y - startY;
-      // canvasRef.current.style.border = "2px solid black";
-      // ctx.strokeStyle = "red";
-      ctx.stroke();
-      ctx.strokeRect(startX, startY, width, height);
-      setlabelList([...labelList, { startX, startY, width, height }]);
-      annotation.current = [];
-    };
-    const getMousePos = (canvas, evt) => {
-      var rect = canvas.getBoundingClientRect();
-      return {
-        x: evt.clientX - rect.left,
-        y: evt.clientY - rect.top,
-      };
-    };
-
-    const renderPage = (num) => {
-      pageRendering = true;
-      pdfDoc.getPage(num).then((page) => {
+        // Set the PDF canvas dimensions to match the PDF page
         const viewport = page.getViewport({ scale: 1 });
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+        pdfCanvas.width = viewport.width;
+        pdfCanvas.height = viewport.height;
 
+        // Set the overlay canvas dimensions to match the PDF canvas
+        overlayCanvas.width = pdfCanvas.width;
+        overlayCanvas.height = pdfCanvas.height;
+
+        // Render the PDF page on a separate canvas element
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext("2d");
         const renderContext = {
-          canvasContext: ctx,
-          viewport,
+          canvasContext: context,
+          viewport: viewport,
         };
-        const renderTask = page.render(renderContext);
-        renderTask.promise.then(() => {
-          pageRendering = false;
-          if (pageNumPending !== null) {
-            renderPage(pageNumPending);
-            pageNumPending = null;
-          }
+        page.render(renderContext).promise.then(() => {
+          pdfContext.drawImage(canvas, 0, 0);
         });
       });
-
-      // Clear annotation canvas
-      annotationCtx.clearRect(
-        0,
-        0,
-        annotationCanvas.width,
-        annotationCanvas.height
-      );
-    };
-
-    const queueRenderPage = (num) => {
-      if (pageRendering) {
-        pageNumPending = num;
-      } else {
-        renderPage(num);
-      }
-    };
-
-    pdfjs.getDocument(pdfUrl).promise.then((pdfDoc_) => {
-      if (pdfDoc !== null) pdfDoc.destroy();
-      pdfDoc = pdfDoc_;
-      renderPage(pageNum);
     });
 
-    annotationCanvas.addEventListener("click", handleClick);
+    // Add event listeners to the overlay canvas
+    overlayCanvas.addEventListener("mousedown", handleMouseDown);
+    overlayCanvas.addEventListener("mousemove", handleMouseMove);
+    overlayCanvas.addEventListener("mouseup", handleMouseUp);
+    overlayCanvas.addEventListener("mouseout", handleMouseUp);
+
+    // Add a resize event listener to the window object
+    window.addEventListener("resize", handleResize);
+
     return () => {
-      annotationCanvas.removeEventListener("click", handleClick);
+      // Remove event listeners when the component unmounts
+      overlayCanvas.removeEventListener("mousedown", handleMouseDown);
+      overlayCanvas.removeEventListener("mousemove", handleMouseMove);
+      overlayCanvas.removeEventListener("mouseup", handleMouseUp);
+      overlayCanvas.removeEventListener("mouseout", handleMouseUp);
+
+      window.removeEventListener("resize", handleResize);
     };
-  }, [pdfUrl, annotation]);
+  }, [url, label]);
+  useEffect(() => {
+    const canvas = pdfCanvasRef.current;
+    const context = canvas.getContext("2d");
+
+    function drawAnnotations() {
+      // clear the overlay canvas
+      const overlayCanvas = overlayCanvasRef.current;
+      const overlayContext = overlayCanvas.getContext("2d");
+      overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+      // draw each annotation as a rectangle
+      annotations.forEach((annotation) => {
+        overlayContext.strokeStyle = colors[annotation.label];
+        overlayContext.lineWidth = 2;
+        overlayContext.strokeRect(
+          annotation.x,
+          annotation.y,
+          annotation.width,
+          annotation.height
+        );
+      });
+    }
+
+    drawAnnotations();
+  }, [annotations]);
+  const handleResize = () => {
+    const pdfCanvas = pdfCanvasRef.current;
+    const overlayCanvas = overlayCanvasRef.current;
+
+    // Set the overlay canvas dimensions to match the PDF canvas
+    overlayCanvas.width = pdfCanvas.width;
+    overlayCanvas.height = pdfCanvas.height;
+  };
+
+  const handleMouseDown = (e) => {
+    if (label === null) {
+      alert("Please select a label");
+      return;
+    }
+    isDrawingRef.current = true;
+    lastXRef.current = e.offsetX;
+    lastYRef.current = e.offsetY;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDrawingRef.current) return;
+
+    const overlayCanvas = overlayCanvasRef.current;
+    const overlayContext = overlayCanvas.getContext("2d");
+    overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    overlayContext.strokeStyle = colors[label];
+    overlayContext.lineWidth = 2;
+    overlayContext.strokeRect(
+      lastXRef.current,
+      lastYRef.current,
+      e.offsetX - lastXRef.current,
+      e.offsetY - lastYRef.current
+    );
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isDrawingRef.current) return;
+    const pdfCanvas = pdfCanvasRef.current;
+    const overlayCanvas = overlayCanvasRef.current;
+    const pdfContext = pdfCanvas.getContext("2d");
+    const overlayContext = overlayCanvas.getContext("2d");
+
+    overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    annotations.forEach((annotation) => {
+      overlayContext.strokeStyle = colors[annotation.label];
+      overlayContext.lineWidth = 2;
+      overlayContext.strokeRect(
+        annotation.x,
+        annotation.y,
+        annotation.width,
+        annotation.height
+      );
+    });
+    overlayContext.strokeStyle = colors[label];
+    overlayContext.lineWidth = 2;
+    overlayContext.strokeRect(
+      lastXRef.current,
+      lastYRef.current,
+      e.offsetX - lastXRef.current,
+      e.offsetY - lastYRef.current
+    );
+
+    pdfContext.drawImage(
+      overlayCanvas,
+      0,
+      0,
+      pdfCanvas.width,
+      pdfCanvas.height,
+      0,
+      0,
+      pdfCanvas.width,
+      pdfCanvas.height
+    );
+    updateAnnotations([
+      ...annotations,
+      {
+        x: lastXRef.current,
+        y: lastYRef.current,
+        width: e.offsetX - lastXRef.current,
+        height: e.offsetY - lastYRef.current,
+        label: label,
+        color: colors[label],
+      },
+    ]);
+    isDrawingRef.current = false;
+  };
 
   return (
-    <>
-      <canvas ref={canvasRef}></canvas>
+    <div style={{ position: "relative" }}>
+      <canvas ref={pdfCanvasRef} />
       <canvas
-        ref={annotationCanvasRef}
+        ref={overlayCanvasRef}
         style={{ position: "absolute", top: 0, left: 0 }}
-      ></canvas>
-    </>
+      />
+    </div>
   );
-}
+};
 
 export default PDFCanvas;
