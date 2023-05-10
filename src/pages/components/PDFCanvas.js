@@ -16,7 +16,7 @@ const PDFCanvas = ({ url }) => {
   const colors = {
     Title: "red",
     Copy: "orange",
-    Date: "yellow",
+    Date: "rgb(219, 216, 18)",
     Body: "green",
     Table: "blue",
     OrderNumber: "indigo",
@@ -84,24 +84,29 @@ const PDFCanvas = ({ url }) => {
     const context = canvas.getContext("2d");
 
     function drawAnnotations() {
-      // clear the overlay canvas
+      // // clear the overlay canvas
       const overlayCanvas = overlayCanvasRef.current;
       const overlayContext = overlayCanvas.getContext("2d");
-      overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      // overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
       // draw each annotation as a rectangle
       annotations.forEach((annotation) => {
         overlayContext.strokeStyle = colors[annotation.label];
-        overlayContext.lineWidth = 2;
+        overlayContext.lineWidth = 1;
+        overlayContext.strokeText(
+          annotation.label,
+          annotation.x,
+          annotation.y + annotation.height + 10
+        );
         overlayContext.strokeRect(
           annotation.x,
           annotation.y,
           annotation.width,
           annotation.height
         );
+        overlayContext.font = "18px consolas";
       });
     }
-
     drawAnnotations();
   }, [annotations]);
   const handleResize = () => {
@@ -178,17 +183,14 @@ const PDFCanvas = ({ url }) => {
       pdfCanvas.width,
       pdfCanvas.height
     );
-    updateAnnotations([
-      ...annotations,
-      {
-        x: lastXRef.current,
-        y: lastYRef.current,
-        width: e.offsetX - lastXRef.current,
-        height: e.offsetY - lastYRef.current,
-        label: label,
-        color: colors[label],
-      },
-    ]);
+    updateAnnotations({
+      x: lastXRef.current,
+      y: lastYRef.current,
+      width: e.offsetX - lastXRef.current,
+      height: e.offsetY - lastYRef.current,
+      label: label,
+      color: colors[label],
+    });
     isDrawingRef.current = false;
   };
 

@@ -5,6 +5,7 @@ import json from "json5";
 
 const AnnotationsState = (props) => {
   const [annotations, setAnnotations] = useState([]);
+
   const updateAnnotations = (annotation) => {
     setAnnotations((prevAnnotations) => [...prevAnnotations, annotation]);
   };
@@ -13,11 +14,6 @@ const AnnotationsState = (props) => {
       prevAnnotations.filter((annotation) => annotation.id !== id)
     );
   };
-  useEffect(() => {
-    annotations.forEach((annotation) => {
-      console.log(json.stringify(annotation));
-    });
-  }, [annotations]);
   return (
     <AnnotationsContext.Provider
       value={{ annotations, updateAnnotations, deleteAnnotation }}
